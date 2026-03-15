@@ -1,25 +1,31 @@
-const { Pool } = require("pg");
-require("dotenv").config();
+import os
+from sqlalchemy import create_engine
+from sqlalchemy.orm import declarative_base, sessionmaker
+from dotenv import load_dotenv
 
-let pool;
+load_dotenv()
 
-try {
-    if (!process.env.DATABASE_URL) {
-        throw new Error("DATABASE_URL missing in environment variables");
-    }
+# Setup PostgreSQL Database URL
+# Provide a valid default or require it to exist in the .env file.
+# Example format: postgresql://username:password@host:port/database_name
+SQLALCHEMY_DATABASE_URL = os.getenv(
+    "DATABASE_URL", 
+    "postgresql://postgres:postgres@localhost:5432/my_database"
+)
 
-    pool = new Pool({
-        connectionString: process.env.DATABASE_URL,
-        ssl: process.env.NODE_ENV === "production"
-            ? { rejectUnauthorized: false }
-            : false
-    });
+try:
+    engine = create_engine(SQLALCHEMY_DATABASE_URL)
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    print("🐘 PostgreSQL Database Engine Initialized")
+except Exception as e:
+    print(f"❌ Failed to initialize PostgreSQL engine: {e}")
 
-    console.log("🔥 PostgreSQL connected");
+Base = declarative_base()
 
-} catch (error) {
-    console.error("❌ PostgreSQL Initialization Error:", error.message);
-    process.exit(1);
-}
-
-module.exports = { pool };
+# FastAPI Dependency for injecting the database session
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
